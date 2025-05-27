@@ -1,0 +1,7 @@
+{
+  "boosters": [
+    { "id": 1, "name": "Буст x2", "cost": 50, "multiplier": 2 },
+    { "id": 2, "name": "Буст x5", "cost": 200, "multiplier": 5 },
+    { "id": 3, "name": "Буст x10", "cost": 500, "multiplier": 10 }
+  ]
+}
