@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тапалка Кружочка</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e1e2f, #2a2a4e);
+            color: #fff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow-y: auto;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            font-size: 3em;
+            text-shadow: 0 0 10px #ff00ff, 0 0 20px #00ffff;
+            margin-bottom: 20px;
+        }
+        .balance {
+            font-size: 2em;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .circle {
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, #ff00ff, #00ffff);
+            border-radius: 50%;
+            margin: 20px auto;
+            cursor: pointer;
+            transition: transform 0.1s;
+            box-shadow: 0 0 20px #ff00ff, 0 0 40px #00ffff;
+        }
+        .circle:active {
+            transform: scale(0.95);
+        }
+        .store {
+            margin-top: 30px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .booster {
+            background: #444;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .booster button {
+            background: #ff00ff;
+            border: none;
+            padding: 5px 10px;
+            color: #fff;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .booster button:hover {
+            background: #00ffff;
+        }
+        .booster button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        @keyframes coin-pop {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; }
+        }
+        .coin-animation {
+            position: absolute;
+            font-size: 1.5em;
+            color: #ffd700;
+            pointer-events: none;
+            animation: coin-pop 0.5s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Тапалка Кружочка</h1>
+        <div class="balance">Монеты: <span id="coin-count">0</span></div>
+        <div class="circle" id="circle"></div>
+        <div class="store">
+            <h2>Магазин бустеров</h2>
+            <div id="boosters"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const circle = document.getElementById('circle');
+            const coinCountDisplay = document.getElementById('coin-count');
+            const boostersContainer = document.getElementById('boosters');
+
+            // Инициализация данных пользователя
+            let coins = parseInt(localStorage.getItem('coins')) || 0;
+            let clickValue = parseInt(localStorage.getItem('clickValue')) || 1;
+            let ownedBoosters = JSON.parse(localStorage.getItem('ownedBoosters')) || {};
+
+            // Загрузка данных из JSON с GitHub
+            fetch('data.json')
+                .then(response => response.json())
+                .then(data => {
+                    const boosters = data.boosters;
+
+                    // Функции обновления
+                    const updateBalance = () => {
+                        coinCountDisplay.textContent = coins;
+                        localStorage.setItem('coins', coins);
+                    };
+
+                    const saveProgress = () => {
+                        localStorage.setItem('clickValue', clickValue);
+                        localStorage.setItem('ownedBoosters', JSON.stringify(ownedBoosters));
+                    };
+
+                    const createCoinAnimation = (x, y) => {
+                        const coin = document.createElement('div');
+                        coin.textContent = `+${clickValue}`;
+                        coin.className = 'coin-animation';
+                        coin.style.left = `${x}px`;
+                        coin.style.top = `${y}px`;
+                        document.body.appendChild(coin);
+                        setTimeout(() => coin.remove(), 500);
+                    };
+
+                    const renderBoosters = () => {
+                        boostersContainer.innerHTML = '';
+                        boosters.forEach(booster => {
+                            const isOwned = ownedBoosters[booster.id] || false;
+                            const boosterDiv = document.createElement('div');
+                            boosterDiv.className = 'booster';
+                            boosterDiv.innerHTML = `
+                                ${booster.name} (Цена: ${booster.cost} монет)
+                                <button ${isOwned || coins < booster.cost ? 'disabled' : ''}>
+                                    ${isOwned ? 'Куплено' : 'Купить'}
+                                </button>
+                            `;
+                            const button = boosterDiv.querySelector('button');
+                            if (!isOwned) {
+                                button.addEventListener('click', () => {
+                                    if (coins >= booster.cost) {
+                                        coins -= booster.cost;
+                                        clickValue *= booster.multiplier;
+                                        ownedBoosters[booster.id] = true;
+                                        updateBalance();
+                                        saveProgress();
+                                        renderBoosters();
+                                    }
+                                });
+                            }
+                            boostersContainer.appendChild(boosterDiv);
+                        });
+                    };
+
+                    // Обработчик клика по кругу
+                    circle.addEventListener('click', (e) => {
+                        coins += clickValue;
+                        updateBalance();
+                        createCoinAnimation(e.clientX, e.clientY);
+                    });
+
+                    // Инициализация
+                    updateBalance();
+                    renderBoosters();
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки data.json:', error);
+                    boostersContainer.innerHTML = 'Не удалось загрузить данные бустеров.';
+                });
+        });
+    </script>
+</body>
+</html>
